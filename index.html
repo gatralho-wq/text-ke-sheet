@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chat ke Spreadsheet</title>
+<meta name="theme-color" content="#1f3a5f">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  *{box-sizing:border-box}
+  :root{--ink:#1d2733;--muted:#566272;--line:#cfd6df;--bg:#eceff3;--navy:#1f3a5f;--navy-dark:#162b47;--green:#2e6b4c;--red:#a23b36;--soft:#e4e9f0;--gold:#b79a5b}
+  html{font-size:17px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:"Segoe UI",Roboto,Arial,sans-serif;line-height:1.6}
+  .top{background:var(--navy);color:#fff;border-bottom:4px solid var(--gold)}
+  .top .inner{max-width:900px;margin:auto;padding:22px 18px}
+  .top p{margin:6px 0 0;color:#d5deea}
+  h1{margin:0;font-family:Georgia,"Times New Roman",serif;font-size:1.9rem;font-weight:700}
+  h2{margin:0 0 14px;padding-bottom:10px;border-bottom:1px solid var(--line);font-family:Georgia,"Times New Roman",serif;font-size:1.3rem;color:var(--navy)}
+  .wrap{max-width:900px;margin:auto;padding:18px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:6px;padding:20px;margin-bottom:18px}
+  p{margin:0 0 10px}
+  label{display:block;margin-bottom:6px}
+  code{background:var(--soft);padding:1px 6px;border-radius:3px}
+  textarea,input,select{width:100%;min-height:48px;padding:12px;border:1px solid #9aa6b5;border-radius:4px;font-size:1rem;font-family:inherit;color:var(--ink);background:#fff}
+  textarea{min-height:180px;resize:vertical}
+  textarea:focus,input:focus,select:focus,button:focus-visible{outline:3px solid #8fb0dd;outline-offset:1px}
+  button{min-height:48px;border:1px solid transparent;border-radius:4px;padding:10px 18px;font-size:1rem;font-weight:600;font-family:inherit;cursor:pointer;margin:8px 8px 0 0}
+  .primary{background:var(--navy);color:#fff}
+  .primary:hover{background:var(--navy-dark)}
+  .success{background:var(--green);color:#fff}
+  .success:hover{background:#245640}
+  .secondary{background:#fff;color:var(--navy);border-color:var(--navy)}
+  .secondary:hover{background:var(--soft)}
+  .danger{background:#fff;color:var(--red);border-color:var(--red)}
+  .danger:hover{background:#f8e9e8}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .table-wrap{overflow:auto;margin-top:12px;border:1px solid var(--line)}
+  table{border-collapse:collapse;width:100%;background:#fff}
+  th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;white-space:nowrap}
+  th{background:var(--soft);color:var(--navy)}
+  tbody tr:nth-child(even) td{background:#f7f9fb}
+  .hint{font-size:.92rem;color:var(--muted)}
+  .status{margin-top:12px;font-weight:600;color:var(--navy)}
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .tab{margin:0;padding:8px 16px;background:#fff;color:var(--navy);border-color:var(--line)}
+  .tab:hover{background:var(--soft)}
+  .tab.active{background:var(--navy);color:#fff;border-color:var(--navy)}
+  .install{display:none;background:transparent;color:#fff;border-color:#fff}
+  .install:hover{background:#ffffff22}
+  @media(max-width:600px){.row{grid-template-columns:1fr}h1{font-size:1.55rem}.card{padding:16px}.wrap{padding:12px}}
+</style>
+</head>
+<body>
+<header class="top"><div class="inner">
+  <h1>Chat ke Spreadsheet</h1>
+  <p>Ubah data dari WhatsApp menjadi tabel Excel dalam tiga langkah.</p>
+  <button id="installBtn" class="install">Pasang aplikasi di HP</button>
+</div></header>
+<div class="wrap">
+  <div class="card">
+    <h2>Langkah 1. Tempel data</h2>
+    <p>Tempel data dari WhatsApp. Setiap pemisah (misalnya koma <b>,</b>) akan menjadi kolom baru.</p>
+    <p class="hint">Contoh: <code>01/10/2026, D3, mesin bermasalah, Wringin Anom,Rusak</code>. Teks dalam tanda kutip, misalnya <code>"Andi, S.Pd"</code>, tidak dipecah.</p>
+    <textarea id="input" placeholder="01/10/2026, D3, mesin bermasalah, Wringin Anom, Rusak
+02/10/2026, D4, keyboard rusak, Olean, Rusak"></textarea>
+
+    <div class="row" style="margin-top:12px">
+      <div>
+        <label for="separator"><b>Pemisah</b></label>
+        <select id="separator">
+          <option value=",">Koma (,)</option>
+          <option value=";">Titik koma (;)</option>
+          <option value="|">Garis (|)</option>
+          <option value="tab">Tab</option>
+        </select>
+      </div>
+      <div>
+        <label for="headers"><b>Nama kolom</b></label>
+        <input id="headers" value="Tanggal, Armada, Masalah, Posisi, Status">
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <button class="primary" onclick="processData()">Proses Data</button>
+      <button class="secondary" onclick="clearAll()">Bersihkan</button>
+    </div>
+    <div id="status" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Langkah 2. Periksa hasil dan pilih sheet</h2>
+    <div id="result" class="hint">Belum ada data.</div>
+
+    <div class="row" style="margin-top:14px">
+      <div>
+        <label for="sheetSelect"><b>Masukkan ke sheet</b></label>
+        <select id="sheetSelect" onchange="onSheetSelect()"></select>
+      </div>
+      <div>
+        <label for="mode"><b>Jika sheet sudah berisi data</b></label>
+        <select id="mode">
+          <option value="append">Tambahkan di bawah data lama</option>
+          <option value="replace">Ganti seluruh isi sheet</option>
+        </select>
+      </div>
+    </div>
+    <div id="newSheetBox" style="margin-top:12px">
+      <label for="newSheetName"><b>Nama sheet baru</b></label>
+      <input id="newSheetName" maxlength="31">
+    </div>
+
+    <div style="margin-top:10px">
+      <button class="success" onclick="addToSheet()">Masukkan ke Sheet</button>
+      <button class="secondary" onclick="downloadCSV(parsedAOA(),'data_chat_spreadsheet')">Download CSV</button>
+      <button class="secondary" onclick="copyTSV(parsedAOA())">Salin untuk Google Sheets</button>
+    </div>
+    <div id="addStatus" class="status"></div>
+  </div>
+
+  <div class="card">
+    <h2>Langkah 3. Simpan ke Excel</h2>
+    <div id="tabs" class="tabs"></div>
+    <div id="sheetView" class="hint" style="margin-top:8px">Belum ada sheet.</div>
+
+    <div style="margin-top:12px">
+      <label for="fileName"><b>Nama file Excel</b></label>
+      <input id="fileName" onchange="onFileName()">
+    </div>
+    <div style="margin-top:12px">
+      <label for="theme"><b>Warna judul (khusus file Excel)</b></label>
+      <select id="theme" onchange="onTheme()">
+        <option value="biru">Biru</option>
+        <option value="hijau">Hijau</option>
+        <option value="ungu">Ungu</option>
+        <option value="oranye">Oranye</option>
+        <option value="merah">Merah</option>
+      </select>
+      <p class="hint">File Excel otomatis dibuat rata tengah, judul berwarna, ada garis tabel dan baris selang-seling. File CSV tidak bisa menyimpan warna.</p>
+    </div>
+    <div style="margin-top:10px">
+      <button class="success" onclick="downloadXLSX()">Download Excel (semua sheet)</button>
+      <button class="secondary" onclick="downloadCSV(sheetAOA(),currentName())">CSV sheet ini</button>
+      <button class="secondary" onclick="copyTSV(sheetAOA())">Salin sheet ini</button>
+      <button class="danger" onclick="deleteSheet()">Hapus sheet ini</button>
+    </div>
+
+    <div style="margin-top:14px">
+      <label for="importFile"><b>Lanjutkan dari file Excel (.xlsx / .xls)</b></label>
+      <input id="importFile" type="file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" onchange="importFile(event)">
+      <p class="hint">Sheet dari file akan muncul di daftar "Masukkan ke sheet", lalu data baru bisa ditambahkan ke sheet yang kamu pilih.</p>
+    </div>
+    <div style="margin-top:6px">
+      <button class="danger" onclick="resetAll()">Kosongkan semua sheet</button>
+    </div>
+    <div id="bookStatus" class="status"></div>
+    <p class="hint">Sheet disimpan otomatis di browser HP ini, jadi tidak hilang saat halaman ditutup.</p>
+  </div>
+</div>
+
+<script src="xlsx.min.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const KEY = 'chat_ke_spreadsheet_v1';
+let book = {order:[], sheets:{}, fileName:'data_chat_spreadsheet', theme:'biru'};
+const THEMES = {
+  biru:   {head:'1769E0', band:'EAF1FD'},
+  hijau:  {head:'198754', band:'E7F4EC'},
+  ungu:   {head:'6F42C1', band:'F0EAFA'},
+  oranye: {head:'E8590C', band:'FDEEE3'},
+  merah:  {head:'C0392B', band:'FBEAE8'}
+};
+let parsed = {headers:[], rows:[]};
+let viewSheet = null;
+
+/* ---------- penyimpanan ---------- */
+function save(){
+  try{ localStorage.setItem(KEY, JSON.stringify(book)); }
+  catch(e){ $('bookStatus').textContent = '⚠️ Sheet tidak bisa disimpan otomatis (penyimpanan browser penuh atau diblokir). Segera download Excel.'; }
+}
+function load(){
+  try{
+    const b = JSON.parse(localStorage.getItem(KEY) || 'null');
+    if(b && Array.isArray(b.order) && b.sheets){
+      const nb = {order:[], sheets:{}, fileName:b.fileName || book.fileName, theme:THEMES[b.theme] ? b.theme : 'biru'};
+      b.order.forEach(n=>{
+        const s = b.sheets[n];
+        if(s && Array.isArray(s.rows)){ nb.order.push(n); nb.sheets[n] = {rows:s.rows}; }
+      });
+      book = nb;
+    }
+  }catch(e){}
+}
+
+/* ---------- parsing ---------- */
+function getSeparator(){
+  const v = $('separator').value;
+  return v === 'tab' ? '\t' : v;
+}
+
+// Memecah baris per pemisah, tanda kutip "..." dihormati
+function splitLine(line, sep){
+  const out = []; let cur = '', inQ = false;
+  for(let i=0;i<line.length;i++){
+    const ch = line[i];
+    if(inQ){
+      if(ch === '"'){
+        if(line[i+1] === '"'){ cur += '"'; i++; } else inQ = false;
+      } else cur += ch;
+    } else if(ch === '"' && cur.trim() === ''){
+      inQ = true; cur = '';
+    } else if(ch === sep){
+      out.push(cur.trim()); cur = '';
+    } else cur += ch;
+  }
+  out.push(cur.trim());
+  return out;
+}
+
+function processData(){
+  const raw = $('input').value.trim();
+  const status = $('status');
+  if(!raw){ status.textContent = 'Masukkan data terlebih dahulu.'; return; }
+
+  const sep = getSeparator();
+  const ht = $('headers').value;
+  const headers = (ht.includes(sep) ? splitLine(ht, sep) : splitLine(ht, ',')).filter(x=>x!=='');
+
+  let rows = raw.split(/\r?\n/)
+    .filter(line => line.trim() !== '')
+    .map(line => splitLine(line, sep));
+
+  const maxCols = rows.reduce((m, r)=>Math.max(m, r.length), headers.length);
+  while(headers.length < maxCols) headers.push('Kolom ' + (headers.length+1));
+  rows = rows.map(r=>{
+    while(r.length < maxCols) r.push('');
+    return r.slice(0, maxCols);
+  });
+
+  parsed = {headers, rows};
+  renderPreview();
+  status.textContent = `✅ ${rows.length} baris berhasil diproses. Pilih sheet tujuan di bawah.`;
+}
+
+function parsedAOA(){ return parsed.rows.length ? [parsed.headers, ...parsed.rows] : []; }
+
+/* ---------- tampilan tabel ---------- */
+function esc(s){
+  return String(s).replace(/[&<>"']/g, m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[m]));
+}
+function tableHTML(head, body){
+  let h = '<div class="table-wrap"><table><thead><tr>';
+  head.forEach(x=>h += '<th>'+esc(x)+'</th>');
+  h += '</tr></thead><tbody>';
+  body.forEach(r=>{
+    h += '<tr>';
+    r.forEach(c=>h += '<td>'+esc(c)+'</td>');
+    h += '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+function renderPreview(){
+  if(!parsed.rows.length){ $('result').innerHTML = 'Belum ada data.'; return; }
+  $('result').innerHTML = tableHTML(parsed.headers, parsed.rows.slice(0, 300)) +
+    (parsed.rows.length > 300 ? '<p class="hint">Menampilkan 300 dari '+parsed.rows.length+' baris. Semua baris tetap ikut dimasukkan.</p>' : '');
+}
+
+/* ---------- sheet ---------- */
+function cleanSheetName(s){
+  s = String(s || '').replace(/[\\\/\?\*\[\]:]/g, ' ').replace(/^'+|'+$/g, '').trim().slice(0, 31);
+  if(s === '__proto__' || s === '__new__') s += '_';
+  return s;
+}
+function findSheet(name){ return book.order.find(n => n.toLowerCase() === name.toLowerCase()); }
+function nextName(){ let i = 1; while(findSheet('Sheet'+i)) i++; return 'Sheet'+i; }
+function padSheet(sh){
+  const w = sh.rows.reduce((m, r)=>Math.max(m, r.length), 0);
+  sh.rows = sh.rows.map(r=>{ r = r.slice(); while(r.length < w) r.push(''); return r; });
+}
+function currentName(){ return viewSheet || 'sheet'; }
+function sheetAOA(){ return viewSheet && book.sheets[viewSheet] ? book.sheets[viewSheet].rows : []; }
+
+function refreshSheetSelect(selected){
+  const sel = $('sheetSelect');
+  sel.innerHTML = '';
+  book.order.forEach(n=>{
+    const o = document.createElement('option');
+    o.value = n;
+    o.textContent = n + ' (' + Math.max(book.sheets[n].rows.length - 1, 0) + ' baris)';
+    sel.appendChild(o);
+  });
+  const o = document.createElement('option');
+  o.value = '__new__'; o.textContent = 'Buat sheet baru…';
+  sel.appendChild(o);
+  sel.value = (selected && book.sheets[selected]) ? selected : (book.order.length ? (viewSheet || book.order[0]) : '__new__');
+  $('newSheetName').value = nextName();
+  onSheetSelect();
+}
+function onSheetSelect(){
+  $('newSheetBox').style.display = $('sheetSelect').value === '__new__' ? 'block' : 'none';
+}
+
+function renderBook(){
+  const tabs = $('tabs'), box = $('sheetView');
+  tabs.innerHTML = '';
+  if(!book.order.length){
+    box.innerHTML = 'Belum ada sheet. Proses data, lalu pilih "Sheet baru" dan klik Masukkan ke Sheet.';
+    return;
+  }
+  if(!viewSheet || !book.sheets[viewSheet]) viewSheet = book.order[0];
+  book.order.forEach(n=>{
+    const b = document.createElement('button');
+    b.className = 'tab' + (n === viewSheet ? ' active' : '');
+    b.textContent = n;
+    b.addEventListener('click', ()=>{ viewSheet = n; renderBook(); });
+    tabs.appendChild(b);
+  });
+  const rows = book.sheets[viewSheet].rows;
+  if(!rows.length){ box.innerHTML = 'Sheet ini kosong.'; return; }
+  let body = rows.slice(1), note = '';
+  if(body.length > 200){
+    note = '<p class="hint">Menampilkan 200 baris terakhir dari '+body.length+' baris. File hasil tetap lengkap.</p>';
+    body = body.slice(-200);
+  }
+  box.innerHTML = tableHTML(rows[0], body) + note;
+}
+function refreshAll(selected){ refreshSheetSelect(selected); renderBook(); }
+
+function addToSheet(){
+  const msg = $('addStatus');
+  if(!parsed.rows.length){ msg.textContent = 'Proses data dulu sebelum memasukkan ke sheet.'; return; }
+  let name = $('sheetSelect').value;
+  if(name === '__new__'){
+    name = cleanSheetName($('newSheetName').value);
+    if(!name){ msg.textContent = 'Isi nama sheet baru.'; return; }
+    if(findSheet(name)){ msg.textContent = 'Sheet "'+findSheet(name)+'" sudah ada. Pilih dari daftar atau pakai nama lain.'; return; }
+    book.order.push(name);
+    book.sheets[name] = {rows:[]};
+  }
+  const sh = book.sheets[name];
+  const newRows = parsed.rows.map(r=>r.slice());
+  if($('mode').value === 'replace' || sh.rows.length === 0){
+    sh.rows = [parsed.headers.slice(), ...newRows];
+  } else {
+    const hdr = sh.rows[0];
+    parsed.headers.forEach((h, i)=>{ if(hdr[i] === undefined || hdr[i] === '') hdr[i] = h; });
+    sh.rows = sh.rows.concat(newRows);
+  }
+  padSheet(sh);
+  viewSheet = name;
+  save();
+  refreshAll(name);
+  msg.textContent = `✅ ${newRows.length} baris masuk ke sheet "${name}".`;
+}
+
+function deleteSheet(){
+  if(!viewSheet) return;
+  if(!confirm('Hapus sheet "'+viewSheet+'"?')) return;
+  book.order = book.order.filter(n=>n !== viewSheet);
+  delete book.sheets[viewSheet];
+  viewSheet = book.order[0] || null;
+  save(); refreshAll();
+}
+function resetAll(){
+  if(!book.order.length) return;
+  if(!confirm('Semua sheet akan dihapus. Lanjut?')) return;
+  book.order = []; book.sheets = {}; viewSheet = null;
+  save(); refreshAll();
+  $('bookStatus').textContent = '';
+}
+function onTheme(){
+  book.theme = $('theme').value;
+  save();
+}
+function onFileName(){
+  book.fileName = $('fileName').value.trim() || 'data_chat_spreadsheet';
+  save();
+}
+
+/* ---------- impor Excel ---------- */
+function importFile(ev){
+  const f = ev.target.files[0];
+  const msg = $('bookStatus');
+  if(!f) return;
+  if(typeof XLSX === 'undefined'){ msg.textContent = 'Library Excel belum termuat. Muat ulang halaman.'; ev.target.value = ''; return; }
+  if(book.order.length && !confirm('Isi sheet saat ini akan diganti dengan isi file ini. Lanjut?')){ ev.target.value = ''; return; }
+  const rd = new FileReader();
+  rd.onload = e=>{
+    try{
+      const wb = XLSX.read(e.target.result, {type:'array'});
+      const nb = {order:[], sheets:{}, fileName:f.name.replace(/\.[^.]+$/, '') || book.fileName, theme:book.theme};
+      wb.SheetNames.forEach(n=>{
+        const aoa = XLSX.utils.sheet_to_json(wb.Sheets[n], {header:1, raw:false, defval:'', blankrows:false});
+        const sh = {rows: aoa.map(r=>r.map(c=>String(c)))};
+        padSheet(sh);
+        let name = cleanSheetName(n) || 'Sheet';
+        let k = 2; const base = name;
+        while(nb.order.some(x=>x.toLowerCase() === name.toLowerCase())) name = (base.slice(0, 28) + ' ' + k++);
+        nb.order.push(name); nb.sheets[name] = sh;
+      });
+      book = nb;
+      viewSheet = book.order[0] || null;
+      $('fileName').value = book.fileName;
+      save(); refreshAll();
+      msg.textContent = `✅ ${book.order.length} sheet dimuat dari "${f.name}".`;
+    }catch(err){
+      msg.textContent = 'Gagal membaca file. Pastikan formatnya .xlsx atau .xls.';
+    }
+    ev.target.value = '';
+  };
+  rd.readAsArrayBuffer(f);
+}
+
+/* ---------- ekspor ---------- */
+function safeName(s){ return (String(s||'').replace(/[\\\/:*?"<>|]/g, '_').trim()) || 'data_chat_spreadsheet'; }
+function saveBlob(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 10000);
+}
+function csvCell(s){ return '"' + String(s ?? '').replace(/"/g, '""') + '"'; }
+
+function downloadCSV(aoa, name){
+  if(!aoa.length){ alert('Belum ada data. Proses data atau pilih sheet yang berisi data.'); return; }
+  const text = aoa.map(r=>r.map(csvCell).join(',')).join('\r\n');
+  saveBlob(new Blob(["\ufeff"+text], {type:'text/csv;charset=utf-8'}), safeName(name)+'.csv');
+}
+
+// Angka biasa dijadikan angka sungguhan di Excel; nomor panjang / diawali 0 tetap teks
+function toCell(s){
+  s = String(s ?? '');
+  return /^-?(0|[1-9]\d{0,9})(\.\d+)?$/.test(s) ? Number(s) : s;
+}
+// Lebar kolom mengikuti teks terpanjang. Judul diberi ruang ekstra untuk huruf tebal dan ikon filter
+function colWidths(aoa){
+  const w = [];
+  aoa.forEach((r, ri)=>r.forEach((c, i)=>{
+    const longest = String(c).split(/\r?\n/).reduce((m, l)=>Math.max(m, l.length), 0);
+    const need = ri === 0 ? longest * 1.3 + 7 : longest + 3;
+    w[i] = Math.max(w[i] || 10, need);
+  }));
+  return w.map(x=>({wch: Math.min(Math.ceil(x), 60)}));
+}
+
+// Gaya: judul berwarna, semua sel rata tengah, garis tabel, baris selang-seling
+function styleSheet(ws){
+  if(!ws['!ref']) return;
+  const t = THEMES[book.theme] || THEMES.biru;
+  const range = XLSX.utils.decode_range(ws['!ref']);
+  const line = {style:'thin', color:{rgb:'C9D2DE'}};
+  const border = {top:line, bottom:line, left:line, right:line};
+  const center = {horizontal:'center', vertical:'center', wrapText:true};
+  for(let R = range.s.r; R <= range.e.r; R++){
+    for(let C = range.s.c; C <= range.e.c; C++){
+      const addr = XLSX.utils.encode_cell({r:R, c:C});
+      if(!ws[addr]) ws[addr] = {t:'s', v:''};
+      ws[addr].s = R === 0
+        ? {font:{bold:true, sz:12, color:{rgb:'FFFFFF'}}, fill:{patternType:'solid', fgColor:{rgb:t.head}}, alignment:{horizontal:'center', vertical:'center', wrapText:false}, border}
+        : {font:{sz:11}, fill:{patternType:'solid', fgColor:{rgb: R % 2 === 0 ? t.band : 'FFFFFF'}}, alignment:center, border};
+    }
+  }
+  ws['!rows'] = [{hpx:30}];
+  ws['!autofilter'] = {ref:XLSX.utils.encode_range({s:{r:0,c:range.s.c}, e:{r:range.e.r,c:range.e.c}})};
+}
+function downloadXLSX(){
+  if(!book.order.length){ alert('Belum ada sheet. Masukkan data ke sheet dulu.'); return; }
+  if(typeof XLSX === 'undefined'){ alert('Library Excel belum termuat. Muat ulang halaman, atau pakai Download CSV dulu.'); return; }
+  const wb = XLSX.utils.book_new();
+  book.order.forEach(n=>{
+    const aoa = book.sheets[n].rows.map(r=>r.map(toCell));
+    const ws = XLSX.utils.aoa_to_sheet(aoa);
+    ws['!cols'] = colWidths(aoa);
+    styleSheet(ws);
+    XLSX.utils.book_append_sheet(wb, ws, n);
+  });
+  const out = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+  saveBlob(new Blob([out], {type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}), safeName(book.fileName)+'.xlsx');
+}
+
+async function copyTSV(aoa){
+  if(!aoa.length){ alert('Belum ada data untuk disalin.'); return; }
+  const tsv = aoa.map(r=>r.map(c=>String(c).replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n');
+  try{
+    await navigator.clipboard.writeText(tsv);
+  }catch(e){
+    const ta = document.createElement('textarea');
+    ta.value = tsv; document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  alert('✅ Data disalin. Buka Google Sheets lalu paste ke sel A1.');
+}
+
+function clearAll(){
+  $('input').value = '';
+  $('status').textContent = '';
+  $('addStatus').textContent = '';
+  parsed = {headers:[], rows:[]};
+  $('result').innerHTML = 'Belum ada data.';
+}
+
+/* ---------- mulai ---------- */
+load();
+viewSheet = book.order[0] || null;
+$('fileName').value = book.fileName;
+$('theme').value = book.theme;
+refreshAll();
+if(typeof XLSX === 'undefined'){
+  $('bookStatus').textContent = '⚠️ Library Excel belum termuat. Muat ulang halaman. Fitur lain tetap jalan.';
+}
+
+/* ---------- aplikasi (PWA) ---------- */
+let installEvt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault(); installEvt = e;
+  $('installBtn').style.display = 'inline-block';
+});
+$('installBtn').addEventListener('click', async ()=>{
+  if(!installEvt) return;
+  installEvt.prompt();
+  await installEvt.userChoice;
+  installEvt = null;
+  $('installBtn').style.display = 'none';
+});
+window.addEventListener('appinstalled', ()=>{ $('installBtn').style.display = 'none'; });
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{ navigator.serviceWorker.register('sw.js').catch(()=>{}); });
+}
+</script>
+</body>
+</html>
